@@ -1,0 +1,53 @@
+export type BookingStatus = 'Chờ xác nhận' | 'Đã xác nhận' | 'Đã đến' | 'Đang dùng' | 'Chờ đến' | 'Chờ thanh toán' | 'Đã thanh toán' | 'Đã hủy';
+
+export interface Service {
+  name: string;
+  qty: number;
+  price: number;
+}
+
+export interface Booking {
+  id: string;
+  userId?: string;
+  name: string;
+  phone: string;
+  room?: string;
+  roomType: string;
+  facilityId?: string;
+  facilityName?: string;
+  facilityType?: string;
+  guests: number;
+  time: string;
+  duration: string;
+  date?: string;
+  status: BookingStatus;
+  totalEst?: number;
+  paidAmount?: number;
+  paidAt?: number;
+  paymentStatus?: 'pending' | 'paid';
+  services: Service[];
+  note?: string;
+  arrivalTime?: string;
+  updatedAt?: number;
+}
+
+export interface RoomItem {
+  id: string;
+  name: string;
+  type?: string;
+  category?: string;
+  capacity?: number;
+  price?: number;
+  priceNote?: string;
+  status?: string;
+  facilityId?: string;
+  facilityName?: string;
+}
+
+export interface FacilityData {
+  id: string;
+  name: string;
+  type: 'karaoke' | 'massage' | 'restaurant';
+  rooms: Record<string, any>;
+  roomCount: number;
+}
