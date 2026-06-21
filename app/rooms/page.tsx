@@ -93,7 +93,7 @@ export default function RoomsPage() {
 
   return (
     <div className="bg-gray-100 min-h-screen flex justify-center overflow-hidden font-sans">
-      <div className="w-full max-w-md bg-white relative h-[100dvh] overflow-hidden shadow-2xl flex flex-col">
+      <div className="app-container">
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 pt-12 pb-4 bg-white sticky top-0 z-10 border-b border-gray-100">

@@ -56,8 +56,8 @@ export default function BookingServicesPage() {
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen flex justify-center font-sans">
-      <div className="w-full max-w-md bg-white shadow-xl flex flex-col h-[100dvh]">
+    <div className="bg-gray-50 min-h-screen flex justify-center overflow-hidden font-sans">
+      <div className="app-container">
         {/* Header */}
         <div className="flex items-center justify-between px-4 pt-12 pb-4 bg-white sticky top-0 z-10 border-b border-gray-100">
           <button onClick={() => router.back()} className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors">

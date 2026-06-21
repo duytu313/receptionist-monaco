@@ -157,9 +157,12 @@ export default function RoomSelect() {
     if (!selected || !bookingId || !rtdb) return;
     setSaving(true);
     try {
+      const now = new Date();
+      const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
       await update(dbRef(rtdb, `bookings/${bookingId}`), {
         room:      selected,
         status:    'Đang dùng',
+        startTime: currentTime,
         updatedAt: Date.now(),
       });
       setDone(true);
@@ -253,11 +256,12 @@ export default function RoomSelect() {
 
   /* ── Main ── */
   return (
-    <div className="min-h-screen bg-gray-50 font-sans pb-40">
+    <div className="bg-gray-50 min-h-screen flex justify-center overflow-hidden font-sans">
+      <div className="app-container">
 
-      {/* Header */}
-      <div className="sticky top-0 z-20 bg-white border-b border-gray-100 shadow-sm">
-        <div className="flex items-center gap-3 px-4 pt-12 pb-3 max-w-lg mx-auto">
+        {/* Header */}
+        <div className="sticky top-0 z-20 bg-white border-b border-gray-100 shadow-sm">
+          <div className="flex items-center gap-3 px-4 pt-12 pb-3">
           <button onClick={() => router.back()} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition">
             <ChevronLeft className="w-5 h-5 text-gray-700" />
           </button>
@@ -270,7 +274,7 @@ export default function RoomSelect() {
         </div>
 
         {/* Search */}
-        <div className="px-4 pb-3 max-w-lg mx-auto">
+        <div className="px-4 pb-3">
           <div className="flex items-center gap-2 bg-gray-100 rounded-xl px-3 py-2.5">
             <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
             <input
@@ -284,7 +288,7 @@ export default function RoomSelect() {
         </div>
 
         {/* Legend */}
-        <div className="flex gap-3 px-4 pb-3 max-w-lg mx-auto overflow-x-auto no-scrollbar">
+        <div className="flex gap-3 px-4 pb-3 overflow-x-auto no-scrollbar">
           {[
             { dot: 'bg-green-400',  label: 'Trống' },
             { dot: 'bg-red-400',    label: 'Đang dùng' },
@@ -300,7 +304,7 @@ export default function RoomSelect() {
       </div>
 
       {/* Room Grid by section */}
-      <div className="max-w-lg mx-auto px-4 py-4 space-y-5">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
         {Object.keys(sections).length === 0 ? (
           <div className="text-center py-16 text-gray-400">
             <DoorOpen className="w-10 h-10 mx-auto mb-3 opacity-40" />
@@ -376,8 +380,8 @@ export default function RoomSelect() {
 
       {/* Fixed bottom bar */}
       {selected && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-4 py-4 pb-8 z-30">
-          <div className="max-w-lg mx-auto flex gap-3 items-center">
+        <div className="border-t border-gray-100 bg-white p-4 pb-8 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] shrink-0 relative z-20">
+          <div className="flex gap-3 items-center">
             <div className="flex-1">
               <p className="text-xs text-gray-400">Phòng đã chọn</p>
               <p className="font-bold text-gray-800 text-base">{selected}</p>
@@ -402,6 +406,7 @@ export default function RoomSelect() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

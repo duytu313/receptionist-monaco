@@ -46,6 +46,8 @@ export interface Booking {
   services: Service[];
   note?: string;
   arrivalTime?: string;
+  endTime?: string; // Giờ kết thúc - lưu khi nhấn "Kết thúc & Tính tiền"
+  startTime?: string; // Giờ bắt đầu sử dụng phòng
   updatedAt?: number;
   // Voucher & Reward
   appliedVoucher?: AppliedVoucher;

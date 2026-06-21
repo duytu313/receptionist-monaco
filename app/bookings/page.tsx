@@ -55,6 +55,7 @@ export default function BookingApp() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [checkoutAmount, setCheckoutAmount] = useState('');
+  const [pendingRoomSelection, setPendingRoomSelection] = useState<string | null>(null);
 
   // Derived data
   const selectedBooking = bookings.find(b => b.id === selectedId);
@@ -81,7 +82,7 @@ export default function BookingApp() {
       if (!book) return false;
       if (sel.getFullYear() !== book.getFullYear() || sel.getMonth() !== book.getMonth() || sel.getDate() !== book.getDate()) return false;
     }
-    if (currentUserRole === 'receptionist' && b.status === 'Chờ xác nhận') return false;
+    if (b.status === 'Chờ xác nhận') return false;
     if (selectedFacility !== 'all') {
       const directMatch = b.facilityId === selectedFacility || b.facilityName === selectedFacility || b.facilityType === selectedFacility;
       if (!directMatch) {
@@ -137,28 +138,41 @@ export default function BookingApp() {
     setShowNotifications(false);
   };
 
-  const handleConfirmArrival = async () => {
+  const handleConfirmArrival = async (note: string, time: string) => {
     if (selectedId) {
-      const now = new Date();
-      const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-      await saveBookingUpdate(selectedId, { status: 'Đã đến', arrivalTime: timeStr });
+      await saveBookingUpdate(selectedId, { status: 'Đã đến', arrivalTime: time, note: note });
       setShowConfirmModal(false);
     }
   };
 
   const handleRoomSelect = async (roomName: string) => {
     if (selectedId) {
-      await saveBookingUpdate(selectedId, { room: roomName, status: 'Đang dùng' });
+      // First save the room selection
+      await saveBookingUpdate(selectedId, { room: roomName });
       setShowRoomSelection(false);
+      // Then show confirmation modal for start time
+      setPendingRoomSelection(roomName);
+      setShowConfirmModal(true);
+    }
+  };
+
+  const handleConfirmStartTime = async (note: string, time: string) => {
+    if (selectedId && pendingRoomSelection) {
+      await saveBookingUpdate(selectedId, { status: 'Đang dùng', arrivalTime: time, startTime: time });
+      setShowConfirmModal(false);
+      setPendingRoomSelection(null);
     }
   };
 
   const handleCheckoutSubmit = async () => {
     if (selectedId) {
       const amount = parseInt(checkoutAmount.replace(/\D/g, ''), 10) || 0;
+      const now = new Date();
+      const endTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
       await saveBookingUpdate(selectedId, {
         status: 'Chờ thanh toán',
         totalEst: amount,
+        endTime: endTime,
         paymentStatus: 'pending',
       });
       setShowCheckoutModal(false);
@@ -212,7 +226,7 @@ export default function BookingApp() {
 
   return (
     <div className="bg-gray-100 min-h-screen flex justify-center overflow-hidden font-sans">
-      <div className="w-full max-w-md bg-white relative h-[100dvh] overflow-hidden shadow-2xl flex flex-col">
+      <div className="app-container">
 
         {/* LIST VIEW */}
         {view === 'list' && (
@@ -414,10 +428,17 @@ export default function BookingApp() {
         {/* MODALS */}
         <ConfirmArrivalModal
           isOpen={showConfirmModal}
-          onClose={() => setShowConfirmModal(false)}
-          onConfirm={handleConfirmArrival}
+          onClose={async () => {
+            setShowConfirmModal(false);
+            if (pendingRoomSelection && selectedId) {
+              await saveBookingUpdate(selectedId, { room: '' });
+              setPendingRoomSelection(null);
+            }
+          }}
+          onConfirm={pendingRoomSelection ? handleConfirmStartTime : handleConfirmArrival}
           bookingName={selectedBooking?.name || ''}
           roomName={selectedBooking?.room || ''}
+          mode={pendingRoomSelection ? 'start' : 'arrival'}
         />
 
         <CheckoutModal
@@ -454,7 +475,7 @@ export default function BookingApp() {
           isOpen={showNotifications}
           onClose={() => setShowNotifications(false)}
           onSelectBooking={handleBookingClick}
-          bookings={bookings}
+          bookings={bookings.filter(b => b.status !== 'Chờ xác nhận')}
         />
 
         {/* Menu Overlay */}

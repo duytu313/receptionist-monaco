@@ -63,8 +63,10 @@ export function useBookingData() {
     facilityName: raw?.facilityName,
     facilityType: raw?.facilityType,
     guests: Number(raw?.guests || raw?.guestCount || 1),
-    time: raw?.time || raw?.bookingTime || raw?.startTime || '',
+    time: raw?.time || raw?.bookingTime || '',
     duration: raw?.duration || raw?.timeRange || '',
+    startTime: raw?.startTime || '',
+    endTime: raw?.endTime || '',
     date: raw?.date || raw?.bookingDate || raw?.createdDate,
     status: normalizeStatus(raw?.status || raw?.paymentStatus),
     totalEst: raw?.totalEst || raw?.totalAmount || 0,
@@ -126,7 +128,7 @@ export function useBookingData() {
           await signInAnonymously(auth);
           return;
         } catch (error) {
-          console.error('Anonymous sign-in failed; trying RTDB listener without auth', error);
+          // Anonymous auth is disabled; continue without auth (public read rules allow access)
         }
       } else if (!user.isAnonymous) {
         try {

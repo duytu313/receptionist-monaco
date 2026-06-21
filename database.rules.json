@@ -13,7 +13,7 @@
       "profiles": {
         "$nameKey": {
           ".read": "auth != null && (data.child('authUid').val() === auth.uid || root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'admin' || root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'receptionist')",
-          ".write": "auth != null && (root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'admin' || (!data.exists() && newData.child('authUid').val() === auth.uid && newData.child('role').val() === 'user') || (data.exists() && data.child('authUid').val() === auth.uid && newData.child('role').val() === data.child('role').val()))"
+          ".write": "auth != null && (root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'admin' || (data.child('authUid').val() === auth.uid && newData.child('role').val() === data.child('role').val()))"
         }
       }
     },
@@ -22,24 +22,24 @@
       ".write": "auth != null && root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'admin'"
     },
     "facilities": {
-      ".read": "auth != null",
+      ".read": true,
       ".write": "auth != null && root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'admin'",
       "$facilityId": {
-        ".read": "auth != null",
+        ".read": true,
         ".write": "auth != null && root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'admin'",
         "rooms": {
-          ".read": "auth != null",
+          ".read": true,
           ".write": "auth != null && root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'admin'"
         }
       }
     },
     "bookings": {
-      ".read": "auth != null && (root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'admin' || root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'receptionist' || (query.orderByChild === 'userId' && query.equalTo === auth.uid))",
+      ".read": true,
       ".write": "auth != null && (root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'admin' || root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'receptionist')",
       
       "$bookingId": {
-        ".read": "auth != null && (data.child('userId').val() === auth.uid || root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'admin' || root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'receptionist')",
-        ".write": "auth != null && (root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'admin' || root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'receptionist' || (!data.exists() && newData.child('userId').val() === auth.uid) || (data.exists() && data.child('userId').val() === auth.uid))"
+        ".read": true,
+        ".write": "auth != null && (data.child('userId').val() === auth.uid || root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'admin' || root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'receptionist')"
       },
       ".indexOn": [
         "userId"
@@ -71,6 +71,15 @@
     "news": {
       ".read": "auth != null && (root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'admin' || root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'receptionist')",
       ".write": "auth != null && (root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'admin' || root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'receptionist')"
+    },
+    "pointRequests": {
+      ".read": "auth != null && (root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'admin' || root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'receptionist')",
+      ".write": "auth != null",
+      "$requestId": {
+        ".read": "auth != null",
+        ".write": "auth != null && (data.child('userId').val() === auth.uid || root.child('users/profiles/' + root.child('users/uidMap/' + auth.uid).val() + '/role').val() === 'admin')"
+      },
+      ".indexOn": ["userId"]
     },
     "settings": {
       ".read": "auth != null",

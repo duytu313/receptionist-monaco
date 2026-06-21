@@ -1,25 +1,44 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Home as HomeIcon, DoorOpen, MoreVertical, FileText, Settings,
-  Calendar, Users, BarChart3, Bell, HelpCircle, ChevronRight,
+  Calendar, Users, BarChart3, Bell, HelpCircle, ChevronRight, LogOut,
 } from 'lucide-react';
 import { useBookingData } from '@/hooks/useBookingData';
+import { auth } from '@/firebase';
+import { signOut } from 'firebase/auth';
 
 interface MenuItem {
   icon: React.ReactNode;
   label: string;
   description: string;
-  href: string;
+  href?: string;
+  onClick?: () => void;
   color: string;
 }
 
 export default function MorePage() {
+  const router = useRouter();
   const { facilities, bookings } = useBookingData();
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const waitingCount = bookings.filter(b => b.status === 'Chờ đến').length;
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      if (auth) {
+        await signOut(auth);
+      }
+      router.push('/admin/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      setLoggingOut(false);
+    }
+  };
 
   const menuItems: MenuItem[] = [
     {
@@ -65,6 +84,13 @@ export default function MorePage() {
       color: 'bg-gray-100 text-gray-600',
     },
     {
+      icon: <LogOut className="w-5 h-5" />,
+      label: 'Đăng xuất',
+      description: 'Thoát khỏi tài khoản',
+      onClick: handleLogout,
+      color: 'bg-red-100 text-red-600',
+    },
+    {
       icon: <HelpCircle className="w-5 h-5" />,
       label: 'Hỗ trợ',
       description: 'Hướng dẫn sử dụng',
@@ -75,7 +101,7 @@ export default function MorePage() {
 
   return (
     <div className="bg-gray-100 min-h-screen flex justify-center overflow-hidden font-sans">
-      <div className="w-full max-w-md bg-white relative h-[100dvh] overflow-hidden shadow-2xl flex flex-col">
+      <div className="app-container">
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 pt-12 pb-4 bg-white sticky top-0 z-10 border-b border-gray-100">
@@ -114,24 +140,48 @@ export default function MorePage() {
           <div className="px-4">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-2">Chức năng</p>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-              {menuItems.map((item, index) => (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  className={`flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors ${
-                    index !== menuItems.length - 1 ? 'border-b border-gray-50' : ''
-                  }`}
-                >
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${item.color}`}>
-                    {item.icon}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-800 text-sm">{item.label}</p>
-                    <p className="text-xs text-gray-500">{item.description}</p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-300" />
-                </Link>
-              ))}
+              {menuItems.map((item, index) => {
+                const isLast = index === menuItems.length - 1;
+                if (item.onClick) {
+                  return (
+                    <button
+                      key={item.label}
+                      onClick={item.onClick}
+                      disabled={loggingOut}
+                      className={`flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors w-full text-left ${
+                        isLast ? '' : 'border-b border-gray-50'
+                      }`}
+                    >
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${item.color}`}>
+                        {item.icon}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-800 text-sm">{loggingOut ? 'Đang đăng xuất...' : item.label}</p>
+                        <p className="text-xs text-gray-500">{item.description}</p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-300" />
+                    </button>
+                  );
+                }
+                return (
+                  <Link
+                    key={item.label}
+                    href={item.href || '#'}
+                    className={`flex items-center gap-4 px-4 py-4 hover:bg-gray-50 transition-colors ${
+                      isLast ? '' : 'border-b border-gray-50'
+                    }`}
+                  >
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${item.color}`}>
+                      {item.icon}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-800 text-sm">{item.label}</p>
+                      <p className="text-xs text-gray-500">{item.description}</p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-gray-300" />
+                  </Link>
+                );
+              })}
             </div>
           </div>
         </div>

@@ -4,7 +4,8 @@ import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
   ChevronLeft, User, Phone, Clock, Users, FileText,
-  DoorOpen, Calendar, CheckCircle, XCircle,
+  DoorOpen, Calendar, CheckCircle, XCircle, Home as HomeIcon,
+  MoreVertical,
 } from 'lucide-react';
 import { rtdb } from '../../firebase';
 import { ref as dbRef, push } from 'firebase/database';
@@ -110,7 +111,7 @@ export default function BookingFormPage() {
 
   return (
     <div className="bg-gray-100 min-h-screen flex justify-center overflow-hidden font-sans">
-      <div className="w-full max-w-md bg-white relative h-[100dvh] overflow-hidden shadow-2xl flex flex-col">
+      <div className="app-container">
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 pt-12 pb-4 bg-white sticky top-0 z-10 border-b border-gray-100">
@@ -326,6 +327,26 @@ export default function BookingFormPage() {
           >
             {submitting ? 'Đang tạo...' : 'Tạo đơn đặt phòng'}
           </button>
+        </div>
+
+        {/* Bottom Nav */}
+        <div className="bg-white border-t border-gray-100 flex justify-around px-4 py-3 pb-8 shrink-0 relative z-20">
+          <Link href="/bookings" className="flex flex-col items-center text-green-600">
+            <HomeIcon className="w-6 h-6 mb-1" />
+            <span className="text-[10px] font-medium">Home</span>
+          </Link>
+          <Link href="/dat-phong" className="flex flex-col items-center text-gray-400 hover:text-green-600 transition-colors">
+            <FileText className="w-6 h-6 mb-1" />
+            <span className="text-[10px] font-medium">Đặt phòng</span>
+          </Link>
+          <Link href="/rooms" className="flex flex-col items-center text-gray-400 hover:text-green-600 transition-colors">
+            <DoorOpen className="w-6 h-6 mb-1" />
+            <span className="text-[10px] font-medium">Phòng</span>
+          </Link>
+          <Link href="/more" className="flex flex-col items-center text-gray-400 hover:text-green-600 transition-colors">
+            <MoreVertical className="w-6 h-6 mb-1 rotate-90" />
+            <span className="text-[10px] font-medium">Thêm</span>
+          </Link>
         </div>
       </div>
     </div>

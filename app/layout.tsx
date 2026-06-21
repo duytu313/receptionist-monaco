@@ -1,6 +1,10 @@
 import './globals.css';
 import AuthStatus from '../components/AuthStatus';
 
+export const metadata = {
+  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no',
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -8,10 +12,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="vi">
-      <body>
-        <header className="p-4 border-b">
-          <AuthStatus />
-        </header>
+      <body className="bg-gray-100 font-sans antialiased">
         {children}
       </body>
     </html>

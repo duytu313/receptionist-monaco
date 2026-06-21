@@ -38,6 +38,8 @@ export function BookingDetailView({
   handleUpdateServiceQty, handleMarkPaid, getFacilityInfo
 }: BookingDetailViewProps) {
   const [rewardInfo, setRewardInfo] = useState<any>(null);
+  const [editingGuests, setEditingGuests] = useState(false);
+  const [tempGuests, setTempGuests] = useState(booking.guests);
   const router = useRouter();
 
   // Tải thông tin chi tiết phần thưởng từ ví của khách hàng
@@ -137,16 +139,65 @@ export function BookingDetailView({
           <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-50">
             <div>
               <div className="text-xs text-gray-500 mb-1">Số người</div>
-              <div className="font-bold text-gray-800">{booking.guests}</div>
+              {editingGuests ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setTempGuests(Math.max(1, tempGuests - 1))}
+                    className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600"
+                  >
+                    <Minus className="w-3 h-3" />
+                  </button>
+                  <span className="font-bold text-gray-800 w-6 text-center">{tempGuests}</span>
+                  <button
+                    onClick={() => setTempGuests(tempGuests + 1)}
+                    className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div className="font-bold text-gray-800">{booking.guests}</div>
+                  {!isCancelled && !isPaid && (
+                    <button
+                      onClick={() => { setEditingGuests(true); setTempGuests(booking.guests); }}
+                      className="text-blue-600 hover:text-blue-700"
+                    >
+                      <Edit3 className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              )}
+              {editingGuests && (
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={async () => {
+                      await onSaveUpdate(booking.id, { guests: tempGuests });
+                      setEditingGuests(false);
+                    }}
+                    className="flex-1 py-1.5 rounded-lg bg-green-600 text-white text-xs font-bold"
+                  >
+                    Lưu
+                  </button>
+                  <button
+                    onClick={() => setEditingGuests(false)}
+                    className="flex-1 py-1.5 rounded-lg bg-gray-200 text-gray-700 text-xs font-bold"
+                  >
+                    Hủy
+                  </button>
+                </div>
+              )}
             </div>
             <div>
-              <div className="text-xs text-gray-500 mb-1">Thời gian</div>
-              <div className="font-bold text-gray-800">{booking.duration}</div>
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 mb-1">{booking.status === 'Đang dùng' ? 'Giờ đến' : 'Ngày đặt'}</div>
+              <div className="text-xs text-gray-500 mb-1">Giờ bắt đầu</div>
               <div className="font-bold text-gray-800">
-                {booking.status === 'Đang dùng' && booking.arrivalTime ? booking.arrivalTime : booking.date || 'Chưa có ngày'}
+                {booking.startTime || booking.arrivalTime || 'Chưa bắt đầu'}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500 mb-1">{booking.endTime ? 'Giờ kết thúc' : 'Ngày đặt'}</div>
+              <div className="font-bold text-gray-800">
+                {booking.endTime ? booking.endTime : booking.date || 'Chưa có ngày'}
               </div>
             </div>
           </div>
@@ -308,32 +359,20 @@ export function BookingDetailView({
 
       {/* Bottom Actions */}
       <div className="absolute bottom-0 w-full bg-white border-t border-gray-100 p-4 pb-8 flex gap-3 z-20 shadow-[0_-4px_10px_rgba(0,0,0,0.03)]">
-        {booking.status === 'Chờ xác nhận' && currentUserRole === 'admin' ? (
-          <button
-            onClick={() => onSaveUpdate(booking.id, { status: 'Đã xác nhận' })}
-            className="w-full py-3.5 rounded-xl font-bold text-white text-sm bg-indigo-600 shadow-md shadow-indigo-600/20"
-          >
-            ✓ Duyệt đơn
-          </button>
-        ) : booking.status === 'Đã xác nhận' ? (
+        {(booking.status === 'Đã xác nhận' || booking.status === 'Chờ xác nhận') ? (
           <>
             <button onClick={() => setShowActionSheet(true)} className="flex-1 py-3.5 rounded-xl border border-gray-200 font-bold text-gray-600 text-sm">Hủy đơn</button>
-            {booking.room ? (
-              <button onClick={() => setShowConfirmModal(true)} className="flex-1 py-3.5 rounded-xl font-bold text-white text-sm bg-green-600 shadow-md shadow-green-600/20">Xác nhận đến</button>
-            ) : (
-              <button onClick={() => setShowRoomSelection(true)} className="flex-1 py-3.5 rounded-xl font-bold text-white text-sm bg-green-600 shadow-md shadow-green-600/20">Chọn phòng</button>
-            )}
+            <button onClick={() => setShowConfirmModal(true)} className="flex-1 py-3.5 rounded-xl font-bold text-white text-sm bg-green-600 shadow-md shadow-green-600/20">Xác nhận đến</button>
           </>
-        ) : (booking.status === 'Chờ đến' || booking.status === 'Đã đến' || booking.status === 'Chờ xác nhận') ? (
+        ) : booking.status === 'Đã đến' ? (
           <>
             <button onClick={() => setShowActionSheet(true)} className="flex-1 py-3.5 rounded-xl border border-gray-200 font-bold text-blue-600 text-sm">Chỉnh sửa</button>
-            {booking.status === 'Chờ đến' ? (
-              <button onClick={() => setShowConfirmModal(true)} className="flex-1 py-3.5 rounded-xl font-bold text-white text-sm bg-green-600 shadow-md shadow-green-600/20">Xác nhận đến</button>
-            ) : booking.room ? (
-              <button onClick={() => setShowConfirmModal(true)} className="flex-1 py-3.5 rounded-xl font-bold text-white text-sm bg-green-600 shadow-md shadow-green-600/20">Xác nhận đến</button>
-            ) : (
-              <button onClick={() => setShowRoomSelection(true)} className="flex-1 py-3.5 rounded-xl font-bold text-white text-sm bg-green-600 shadow-md shadow-green-600/20">Chọn phòng</button>
-            )}
+            <button onClick={() => setShowRoomSelection(true)} className="flex-1 py-3.5 rounded-xl font-bold text-white text-sm bg-green-600 shadow-md shadow-green-600/20">Chọn phòng</button>
+          </>
+        ) : booking.status === 'Chờ đến' ? (
+          <>
+            <button onClick={() => setShowActionSheet(true)} className="flex-1 py-3.5 rounded-xl border border-gray-200 font-bold text-blue-600 text-sm">Chỉnh sửa</button>
+            <button onClick={() => setShowConfirmModal(true)} className="flex-1 py-3.5 rounded-xl font-bold text-white text-sm bg-green-600 shadow-md shadow-green-600/20">Xác nhận đến</button>
           </>
         ) : booking.status === 'Đang dùng' ? (
           <div className="w-full space-y-3">

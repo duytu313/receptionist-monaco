@@ -11,8 +11,8 @@ export default function StatsPage() {
 
   const stats = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
-    const todayBookings = bookings.filter((b) => b.date?.slice(0, 10) === today);
-    const allTimeBookings = bookings;
+    const todayBookings = bookings.filter((b) => b.date?.slice(0, 10) === today && b.status !== 'Chờ xác nhận');
+    const allTimeBookings = bookings.filter((b) => b.status !== 'Chờ xác nhận');
 
     // Revenue from paid bookings
     const paidBookings = allTimeBookings.filter((b) => b.status === 'Đã thanh toán');
@@ -48,7 +48,7 @@ export default function StatsPage() {
 
   return (
     <div className="bg-gray-100 min-h-screen flex justify-center overflow-hidden font-sans">
-      <div className="w-full max-w-md bg-white relative h-[100dvh] overflow-hidden shadow-2xl flex flex-col">
+      <div className="app-container">
         {/* Header */}
         <div className="flex items-center justify-between px-4 pt-12 pb-4 bg-white sticky top-0 z-10 border-b border-gray-100">
           <Link href="/more" className="flex items-center text-gray-700 hover:text-gray-900">
