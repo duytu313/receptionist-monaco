@@ -32,7 +32,7 @@ export function useBookingData() {
 
   const normalizeBooking = (id: string, raw: any, user?: any): Booking => ({
     id,
-    userId: raw?.userId,
+    userId: raw?.userId || raw?.uid || raw?.customerUid || raw?.customerId,
     name: pickString(
       raw?.name, raw?.fullName, raw?.displayName, raw?.userName,
       raw?.customerName, raw?.customer_name, raw?.clientName,
@@ -67,14 +67,18 @@ export function useBookingData() {
     duration: raw?.duration || raw?.timeRange || '',
     date: raw?.date || raw?.bookingDate || raw?.createdDate,
     status: normalizeStatus(raw?.status || raw?.paymentStatus),
-    totalEst: raw?.totalEst,
+    totalEst: raw?.totalEst || raw?.totalAmount || 0,
     paidAmount: raw?.paidAmount,
     paidAt: raw?.paidAt,
     paymentStatus: raw?.paymentStatus,
-    services: Array.isArray(raw?.services) ? raw.services : [],
+    services: Array.isArray(raw?.services) ? raw.services : (Array.isArray(raw?.items) ? raw.items : []),
     note: raw?.note,
     arrivalTime: raw?.arrivalTime,
     updatedAt: raw?.updatedAt,
+    appliedVoucher: raw?.appliedVoucher || raw?.voucher,
+    appliedRewardId: raw?.appliedRewardId || raw?.rewardId || raw?.applied_reward_id,
+    finalAmount: raw?.finalAmount,
+    roomPrice: Number(raw?.roomPrice || raw?.price || raw?.totalAmount || raw?.totalEst || 0),
   });
 
   const normalizeRoom = (id: string, raw: any, facilityName?: string): RoomItem => ({
@@ -207,6 +211,7 @@ export function useBookingData() {
 
         unsubscribeBookings = () => { unsubBookings(); };
         unsubscribeFacilities = () => { unsubFacilities(); };
+        setLoading(false);
       } catch (e) {
         console.error('Failed to start RTDB listener', e);
       }
@@ -221,15 +226,18 @@ export function useBookingData() {
 
   const saveBookingUpdate = async (id: string, updates: Partial<Booking>) => {
     const previous = bookings;
-    const nextUpdates = { ...updates, updatedAt: Date.now() };
-    setBookings(prev => prev.map(b => b.id === id ? { ...b, ...nextUpdates } : b));
+    // Remove undefined values to prevent Firebase RTDB errors
+    const cleanUpdates = Object.fromEntries(
+      Object.entries({ ...updates, updatedAt: Date.now() }).filter(([, v]) => v !== undefined)
+    ) as Partial<Booking>;
+    setBookings(prev => prev.map(b => b.id === id ? { ...b, ...cleanUpdates } : b));
     if (!rtdb) {
       alert('Firebase chưa được khởi tạo, không thể đồng bộ đơn.');
       setBookings(previous);
       return;
     }
     try {
-      await update(dbRef(rtdb, `bookings/${id}`), nextUpdates);
+      await update(dbRef(rtdb, `bookings/${id}`), cleanUpdates);
     } catch (error) {
       console.error('Failed to update booking', error);
       setBookings(previous);

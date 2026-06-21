@@ -1,17 +1,20 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
   ChevronLeft, User, Phone, Clock, Users, FileText,
-  DoorOpen, Calendar, CheckCircle,
+  DoorOpen, Calendar, CheckCircle, XCircle,
 } from 'lucide-react';
 import { rtdb } from '../../firebase';
 import { ref as dbRef, push } from 'firebase/database';
 import { useBookingData } from '@/hooks/useBookingData';
 
+// Các trạng thái booking chiếm phòng
+const OCCUPYING_STATUSES = ['Đang dùng', 'Đã đến', 'Chờ đến', 'Đã xác nhận', 'Chờ thanh toán'];
+
 export default function BookingFormPage() {
-  const { facilities, rooms } = useBookingData();
+  const { facilities, rooms, bookings } = useBookingData();
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -25,7 +28,37 @@ export default function BookingFormPage() {
   const [success, setSuccess] = useState(false);
 
   const selectedFacility = facilities.find((f) => f.id === facilityId);
-  const availableRooms = facilityId ? rooms.filter((r) => r.facilityId === facilityId) : [];
+
+  // Xác định phòng nào đang bị chiếm theo ngày đã chọn
+  const occupiedRoomNames = useMemo(() => {
+    const names = new Set<string>();
+    const ids = new Set<string>();
+    (bookings || []).forEach((b: any) => {
+      if (b.status === 'Đã hủy' || b.status === 'Đã thanh toán') return;
+      if (!b.room) return;
+      if (b.date && b.date !== date) return;
+      names.add(b.room);
+      if (b.roomId) ids.add(b.roomId);
+    });
+    return { names, ids };
+  }, [bookings, date]);
+
+  const availableRooms = facilityId
+    ? rooms.filter((r) => {
+        if (r.facilityId !== facilityId) return false;
+        if (occupiedRoomNames.names.has(r.name) || occupiedRoomNames.ids.has(r.id)) return false;
+        return true;
+      })
+    : [];
+
+  const occupiedRooms = facilityId
+    ? rooms.filter((r) => {
+        if (r.facilityId !== facilityId) return false;
+        if (occupiedRoomNames.names.has(r.name) || occupiedRoomNames.ids.has(r.id)) return true;
+        return false;
+      })
+    : [];
+
   const selectedRoom = rooms.find((r) => r.id === roomId);
 
   const handleSubmit = async () => {
@@ -186,7 +219,29 @@ export default function BookingFormPage() {
                     ) : null}
                   </button>
                 ))}
-                {availableRooms.length === 0 && (
+                {/* Hiển thị phòng đang bị chiếm (đã lọc ra availableRooms) */}
+                {occupiedRooms.length > 0 && (
+                  <div className="col-span-2 mt-2">
+                    <p className="text-xs text-red-500 font-semibold mb-2">Phòng đang sử dụng:</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {occupiedRooms.map((room) => (
+                        <div
+                          key={room.id}
+                          className="p-3 rounded-xl border-2 border-red-200 bg-red-50 text-left opacity-70"
+                        >
+                          <div className="flex items-center gap-1">
+                            <XCircle className="w-3 h-3 text-red-500" />
+                            <p className="font-semibold text-sm text-red-700">{room.name}</p>
+                          </div>
+                          {room.capacity && (
+                            <p className="text-xs text-red-500">{room.capacity} người</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {availableRooms.length === 0 && occupiedRooms.length === 0 && (
                   <div className="col-span-2 text-center py-4 text-gray-400 text-sm">
                     Không có phòng khả dụng
                   </div>

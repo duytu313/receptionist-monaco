@@ -2,30 +2,47 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Menu, Bell, ChevronRight, Home as HomeIcon,
   ChevronDown, MoreVertical, DoorOpen, X, Settings, User, FileText, LogOut,
 } from 'lucide-react';
 import { Booking, FacilityData, RoomItem } from '@/types/booking';
 import { useBookingData } from '@/hooks/useBookingData';
-import { getFormattedDate, parseBookingDate, parseHoursFromDuration, calculateTotalServices, formatPrice } from '@/utils/formatters';
+import { getFormattedDate, parseBookingDate, parseHoursFromDuration, formatPrice } from '@/utils/formatters';
 import { statusColors, facilityTypeIcons, TabFilter } from '@/components/constants';
 import { BookingCard } from '@/components/BookingCard';
 import { BookingDetailView } from '@/components/BookingDetailView';
 import { RoomSelectionOverlay } from '@/components/RoomSelectionOverlay';
 import { ConfirmArrivalModal } from '@/components/Modals/ConfirmArrivalModal';
 import { CheckoutModal } from '@/components/Modals/CheckoutModal';
-import { AddServiceModal } from '@/components/Modals/AddServiceModal';
 import { ActionSheet } from '@/components/Modals/ActionSheet';
 import { NotificationsOverlay } from '@/components/Modals/NotificationsOverlay';
 
 export default function BookingApp() {
+  const router = useRouter();
   const { bookings, facilities, rooms, currentUserRole, loading, saveBookingUpdate } = useBookingData();
+
+  // Hàm tính tổng dịch vụ an toàn tránh NaN
+  const safeCalculateTotalServices = (services: any[]) =>
+    (services || []).reduce((acc, s) => {
+      const price = Number(s.price);
+      const quantity = Number(s.qty || s.quantity || 1);
+      const effectivePrice = isNaN(price) ? 0 : price;
+      const effectiveQuantity = isNaN(quantity) ? 1 : quantity;
+      return acc + (effectivePrice * effectiveQuantity);
+    }, 0);
+
+  // Hàm lấy ngày hiện tại theo giờ địa phương (YYYY-MM-DD)
+  const getTodayStr = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  };
 
   // UI State
   const [view, setView] = useState<'list' | 'detail'>('list');
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [selectedDate, setSelectedDate] = useState(getTodayStr);
   const [selectedFacility, setSelectedFacility] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<TabFilter>('all');
   const [followRealTime, setFollowRealTime] = useState(true);
@@ -35,11 +52,9 @@ export default function BookingApp() {
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [showRoomSelection, setShowRoomSelection] = useState(false);
-  const [showAddService, setShowAddService] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [checkoutAmount, setCheckoutAmount] = useState('');
-  const [newServices, setNewServices] = useState<Array<{ name: string; qty: number }>>([]);
 
   // Derived data
   const selectedBooking = bookings.find(b => b.id === selectedId);
@@ -50,7 +65,7 @@ export default function BookingApp() {
   useEffect(() => {
     if (!followRealTime) return;
     const tick = () => {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = getTodayStr();
       setSelectedDate(prev => (prev === today ? prev : today));
     };
     tick();
@@ -158,17 +173,18 @@ export default function BookingApp() {
     }
   };
 
-  const handleMarkPaid = async (bookingId?: string, booking?: Booking) => {
+  const handleMarkPaid = async (bookingId?: string, booking?: Booking, amount?: number) => {
     const targetId = bookingId || selectedId;
     const targetBooking = booking || selectedBooking;
     if (!targetId || !targetBooking) return;
-    const pricePerHour = 200000;
-    const hours = parseHoursFromDuration(targetBooking.duration);
-    const fallbackAmount = pricePerHour * hours + calculateTotalServices(targetBooking.services);
-    const amount = targetBooking.totalEst || fallbackAmount;
+    
+    // Sử dụng amount từ UI (đã tính discount) hoặc fallback tính toán cơ bản
+    const finalAmount = amount !== undefined ? amount : 
+      (Number(targetBooking.totalEst) || 0) + safeCalculateTotalServices(targetBooking.services);
+
     await saveBookingUpdate(targetId, {
       status: 'Đã thanh toán',
-      paidAmount: amount,
+      paidAmount: finalAmount,
       paidAt: Date.now(),
       paymentStatus: 'paid',
     });
@@ -181,13 +197,17 @@ export default function BookingApp() {
     });
   };
 
-  const handleAddServices = async () => {
-    if (!selectedId || !selectedBooking || newServices.length === 0) return;
-    await saveBookingUpdate(selectedId, {
-      services: [...selectedBooking.services, ...newServices.map(s => ({ ...s, price: 0 }))],
-    });
-    setNewServices([]);
-    setShowAddService(false);
+  const handleUpdateServiceQty = async (idx: number, delta: number) => {
+    if (!selectedId || !selectedBooking) return;
+    const newServices = [...selectedBooking.services];
+    const current = newServices[idx];
+    const newQty = (current.qty || current.quantity || 1) + delta;
+    if (newQty <= 0) {
+      newServices.splice(idx, 1);
+    } else {
+      newServices[idx] = { ...current, qty: newQty };
+    }
+    await saveBookingUpdate(selectedId, { services: newServices });
   };
 
   return (
@@ -202,7 +222,7 @@ export default function BookingApp() {
               <div className="flex items-center justify-between px-4 pt-12 pb-4 bg-white sticky top-0 z-10">
                 <Menu className="w-6 h-6 text-gray-700 cursor-pointer" onClick={() => setShowMenu(true)} />
                 <div className="flex items-center font-bold text-lg">
-                  {selectedDate === new Date().toISOString().slice(0, 10)
+                  {selectedDate === getTodayStr()
                     ? 'Hôm nay'
                     : getFormattedDate(selectedDate)
                   }
@@ -299,9 +319,9 @@ export default function BookingApp() {
                     <ChevronDown className="w-4 h-4 ml-1 text-gray-600" />
                   </div>
                 </div>
-                {selectedDate !== new Date().toISOString().slice(0, 10) && (
+                {selectedDate !== getTodayStr() && (
                   <button
-                    onClick={() => { setSelectedDate(new Date().toISOString().slice(0, 10)); setFollowRealTime(true); }}
+                    onClick={() => { setSelectedDate(getTodayStr()); setFollowRealTime(true); }}
                     className="ml-auto text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md"
                   >
                     Về hôm nay
@@ -376,15 +396,16 @@ export default function BookingApp() {
             currentUserRole={currentUserRole}
             statusColors={statusColors}
             formatPrice={formatPrice}
-            calculateTotalServices={calculateTotalServices}
+            calculateTotalServices={safeCalculateTotalServices}
             onBack={handleBack}
             onSaveUpdate={saveBookingUpdate}
             setShowActionSheet={setShowActionSheet}
             setShowConfirmModal={setShowConfirmModal}
             setShowRoomSelection={setShowRoomSelection}
             setShowCheckoutModal={setShowCheckoutModal}
-            setShowAddService={setShowAddService}
+            setShowAddService={() => selectedId && router.push(`/bookings/${selectedId}/services/add`)}
             handleRemoveService={handleRemoveService}
+            handleUpdateServiceQty={handleUpdateServiceQty}
             handleMarkPaid={handleMarkPaid}
             getFacilityInfo={getFacilityInfo}
           />
@@ -409,19 +430,10 @@ export default function BookingApp() {
           onAmountChange={setCheckoutAmount}
         />
 
-        <AddServiceModal
-          isOpen={showAddService}
-          onClose={() => setShowAddService(false)}
-          onConfirm={handleAddServices}
-          bookingStatus={selectedBooking?.status || ''}
-          newServices={newServices}
-          setNewServices={setNewServices}
-        />
-
         <ActionSheet
           isOpen={showActionSheet}
           onClose={() => setShowActionSheet(false)}
-          onAddService={() => { setShowActionSheet(false); setShowAddService(true); }}
+          onAddService={() => { setShowActionSheet(false); if (selectedId) router.push(`/bookings/${selectedId}/services/add`); }}
           onCancelBooking={handleCancelBooking}
         />
 
@@ -430,6 +442,7 @@ export default function BookingApp() {
             selectedBooking={selectedBooking || null}
             facilities={facilities}
             rooms={rooms}
+            bookings={bookings}
             selectedFacility={selectedFacility}
             setSelectedFacility={setSelectedFacility}
             onClose={() => setShowRoomSelection(false)}

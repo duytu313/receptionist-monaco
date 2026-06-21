@@ -4,6 +4,24 @@ export interface Service {
   name: string;
   qty: number;
   price: number;
+  quantity?: number;
+}
+
+export interface AppliedVoucher {
+  code: string;
+  title: string;
+  discountAmount?: number;
+  discountRate?: number;
+  minTotal?: number;
+}
+
+export interface AppliedReward {
+  id: string;
+  title: string;
+  description?: string;
+  discountAmount?: number;
+  discountRate?: number;
+  minTotal?: number;
 }
 
 export interface Booking {
@@ -29,6 +47,11 @@ export interface Booking {
   note?: string;
   arrivalTime?: string;
   updatedAt?: number;
+  // Voucher & Reward
+  appliedVoucher?: AppliedVoucher;
+  appliedRewardId?: string;
+  finalAmount?: number;
+  roomPrice?: number;
 }
 
 export interface RoomItem {

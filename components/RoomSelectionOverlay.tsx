@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ChevronLeft, Key, DoorOpen, Mic, Heart, Soup } from 'lucide-react';
 import { Booking, RoomItem, FacilityData } from '@/types/booking';
 
@@ -6,11 +6,15 @@ interface RoomSelectionOverlayProps {
   selectedBooking: Booking | null;
   facilities: FacilityData[];
   rooms: RoomItem[];
+  bookings?: Booking[];
   selectedFacility: string;
   setSelectedFacility: (facilityId: string) => void;
   onClose: () => void;
   onRoomSelect: (roomName: string) => Promise<void>;
 }
+
+// Các trạng thái booking chiếm phòng
+const OCCUPYING_STATUSES = ['Đang dùng', 'Đã đến', 'Chờ đến', 'Đã xác nhận', 'Chờ thanh toán'];
 
 const facilityTypeIcons: Record<string, React.ReactNode> = {
   karaoke: <Mic size={14} />,
@@ -22,22 +26,40 @@ export function RoomSelectionOverlay({
   selectedBooking,
   facilities,
   rooms,
+  bookings = [],
   selectedFacility,
   setSelectedFacility,
   onClose,
   onRoomSelect,
 }: RoomSelectionOverlayProps) {
 
-  const activeRoomBookings = rooms.map(room => {
-    const booking = selectedBooking; // Assuming we are selecting a room for the selected booking
-    if (booking && (booking.room === room.name || booking.room === room.id)) {
-      return { ...room, bookingStatus: booking.status, bookingTime: booking.time, bookingName: booking.name };
-    }
-    return { ...room, bookingStatus: 'Trống', bookingTime: '', bookingName: '' };
-  });
+  // Xác định phòng nào đang bị chiếm bởi booking khác (không phải booking hiện tại)
+  const occupiedRooms = useMemo(() => {
+    const map = new Map<string, { status: string; time: string; name: string }>();
+    (bookings || []).forEach(b => {
+      // Bỏ qua booking hiện tại và các booking đã hủy/thanh toán
+      if (b.id === selectedBooking?.id) return;
+      if (b.status === 'Đã hủy' || b.status === 'Đã thanh toán') return;
+      if (!b.room) return;
+      const roomName = b.room;
+      if (!map.has(roomName) || OCCUPYING_STATUSES.indexOf(b.status) < OCCUPYING_STATUSES.indexOf(map.get(roomName)!.status)) {
+        map.set(roomName, { status: b.status, time: b.time || b.duration || '', name: b.name });
+      }
+    });
+    return map;
+  }, [bookings, selectedBooking?.id]);
 
   const getRoomBooking = (room: RoomItem) => {
-    return activeRoomBookings.find(b => b.id === room.id && b.bookingStatus !== 'Trống');
+    // Kiểm tra booking hiện tại trước
+    if (selectedBooking && (selectedBooking.room === room.name || selectedBooking.room === room.id)) {
+      return { ...room, bookingStatus: selectedBooking.status, bookingTime: selectedBooking.time, bookingName: selectedBooking.name };
+    }
+    // Kiểm tra booking khác đang chiếm phòng
+    const occupied = occupiedRooms.get(room.name) || occupiedRooms.get(room.id);
+    if (occupied) {
+      return { ...room, bookingStatus: occupied.status, bookingTime: occupied.time, bookingName: occupied.name };
+    }
+    return null;
   };
 
   const getRoomStatusText = (room: RoomItem, roomBooking?: any) => {
@@ -54,8 +76,20 @@ export function RoomSelectionOverlay({
     return 'bg-white border-gray-100 hover:border-green-300 cursor-pointer';
   };
 
-  // Build room sections from facilities
-  const roomSections = facilities.reduce<Record<string, RoomItem[]>>((acc, facility) => {
+  // Lọc facilities theo loại của booking (nếu có), hoặc theo selectedFacility
+  const filteredFacilities = useMemo(() => {
+    if (selectedBooking?.facilityType || selectedBooking?.roomType) {
+      const bookingType = selectedBooking.facilityType || selectedBooking.roomType;
+      return facilities.filter((f) => f.type === bookingType);
+    }
+    if (selectedFacility !== 'all') {
+      return facilities.filter((f) => f.id === selectedFacility);
+    }
+    return facilities;
+  }, [facilities, selectedBooking, selectedFacility]);
+
+  // Build room sections from filtered facilities
+  const roomSections = filteredFacilities.reduce<Record<string, RoomItem[]>>((acc, facility) => {
     const sectionName = facility.name;
     acc[sectionName] = acc[sectionName] || [];
     if (facility.rooms && typeof facility.rooms === 'object') {
@@ -86,7 +120,7 @@ export function RoomSelectionOverlay({
       </div>
 
       {/* Facility tabs inside room selection */}
-      {facilities.length > 1 && (
+      {filteredFacilities.length > 1 && (
         <div className="px-4 py-2 bg-gray-50/50 border-b border-gray-100 flex gap-2 overflow-x-auto no-scrollbar">
           <button
             onClick={() => setSelectedFacility('all')}
@@ -96,7 +130,7 @@ export function RoomSelectionOverlay({
           >
             <DoorOpen size={14} /> Tất cả
           </button>
-          {facilities.map((fac) => (
+          {filteredFacilities.map((fac) => (
             <button
               key={fac.id}
               onClick={() => setSelectedFacility(fac.id)}
@@ -123,19 +157,6 @@ export function RoomSelectionOverlay({
           </div>
         ) : (
           Object.entries(roomSections)
-            .filter(([sectionName]) => {
-              if (selectedBooking) {
-                const targetFac = facilities.find(f =>
-                  f.id === selectedBooking.facilityId ||
-                  f.name === selectedBooking.facilityName ||
-                  f.type === selectedBooking.roomType
-                );
-                if (targetFac) return sectionName === targetFac.name;
-              }
-              if (selectedFacility === 'all') return true;
-              const fac = facilities.find(f => f.id === selectedFacility);
-              return sectionName === (fac?.name || selectedFacility);
-            })
             .map(([section, sectionRooms]) => {
               const fac = facilities.find(f => f.name === section);
               return (

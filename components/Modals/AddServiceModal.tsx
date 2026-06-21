@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 interface NewService {
   name: string;
@@ -15,18 +15,19 @@ interface Props {
 }
 
 export function AddServiceModal({ isOpen, onClose, onConfirm, bookingStatus, newServices, setNewServices }: Props) {
+  const [tempName, setTempName] = useState('');
+  const [tempQty, setTempQty] = useState(1);
+
   if (!isOpen) return null;
 
+  // Chỉ hiện cảnh báo nếu khách chưa đến (trạng thái chờ)
+  const isRestrictedStatus = ['Chờ xác nhận', 'Đã xác nhận', 'Chờ đến'].includes(bookingStatus);
+
   const handleAdd = () => {
-    const nameInput = document.getElementById('tempServiceName') as HTMLInputElement;
-    const qtyInput = document.getElementById('tempServiceQty') as HTMLInputElement;
-    const name = nameInput?.value.trim();
-    const qty = Math.max(1, parseInt(qtyInput?.value) || 1);
-    if (name) {
-      setNewServices([...newServices, { name, qty }]);
-      nameInput.value = '';
-      qtyInput.value = '1';
-      nameInput?.focus();
+    if (tempName.trim()) {
+      setNewServices([...newServices, { name: tempName.trim(), qty: tempQty }]);
+      setTempName(''); // Xóa nội dung input sau khi thêm thành công
+      setTempQty(1);
     }
   };
 
@@ -34,7 +35,7 @@ export function AddServiceModal({ isOpen, onClose, onConfirm, bookingStatus, new
     <div className="fixed inset-0 bg-black/40 flex items-end justify-center sm:items-center z-50">
       <div className="w-full sm:w-[480px] bg-white rounded-t-xl sm:rounded-xl p-4 sm:p-6 mb-6 sm:mb-0 max-h-[80vh] overflow-y-auto">
         <h3 className="text-lg font-semibold mb-4">Thêm dịch vụ</h3>
-        {bookingStatus !== 'Đã đến' && (
+        {isRestrictedStatus && (
           <div className="mb-3 text-sm text-yellow-800 bg-yellow-100 px-3 py-2 rounded">
             ⚠️ Khách chưa được xác nhận đến
           </div>
@@ -44,7 +45,8 @@ export function AddServiceModal({ isOpen, onClose, onConfirm, bookingStatus, new
             <label className="text-sm text-gray-600 block mb-1">Tên dịch vụ</label>
             <input
               type="text"
-              id="tempServiceName"
+              value={tempName}
+              onChange={(e) => setTempName(e.target.value)}
               placeholder="Ví dụ: Bia Heineken"
               className="w-full border rounded-lg px-3 py-2 outline-none focus:border-blue-500 text-sm"
             />
@@ -53,9 +55,9 @@ export function AddServiceModal({ isOpen, onClose, onConfirm, bookingStatus, new
             <label className="text-sm text-gray-600 block mb-1">S.lượng</label>
             <input
               type="number"
-              id="tempServiceQty"
+              value={tempQty}
+              onChange={(e) => setTempQty(Math.max(1, parseInt(e.target.value) || 1))}
               min={1}
-              defaultValue={1}
               className="w-full border rounded-lg px-3 py-2 outline-none focus:border-blue-500 text-sm"
             />
           </div>
