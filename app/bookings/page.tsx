@@ -147,12 +147,8 @@ export default function BookingApp() {
 
   const handleRoomSelect = async (roomName: string) => {
     if (selectedId) {
-      // First save the room selection
-      await saveBookingUpdate(selectedId, { room: roomName });
-      setShowRoomSelection(false);
-      // Then show confirmation modal for start time
-      setPendingRoomSelection(roomName);
-      setShowConfirmModal(true);
+      // Navigate to confirm page with selected room
+      router.push(`/bookings/${selectedId}/confirm?room=${encodeURIComponent(roomName)}`);
     }
   };
 

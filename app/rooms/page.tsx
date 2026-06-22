@@ -54,7 +54,7 @@ export default function RoomsPage() {
         status = activeBooking.status;
         bookingInfo = {
           name: activeBooking.name,
-          time: activeBooking.time || activeBooking.duration,
+          time: activeBooking.startTime || activeBooking.arrivalTime || activeBooking.time || activeBooking.duration,
           guests: activeBooking.guests,
         };
       }

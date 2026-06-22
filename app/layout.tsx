@@ -1,9 +1,14 @@
 import './globals.css';
 import AuthStatus from '../components/AuthStatus';
 
-export const metadata = {
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no',
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: 'no',
 };
+
+export const metadata = {};
 
 export default function RootLayout({
   children,

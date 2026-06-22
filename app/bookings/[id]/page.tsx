@@ -6,6 +6,7 @@ import { useBookingData } from '@/hooks/useBookingData';
 import { BookingDetailView } from '@/components/BookingDetailView';
 import { ConfirmArrivalModal } from '@/components/Modals/ConfirmArrivalModal';
 import { CheckoutModal } from '@/components/Modals/CheckoutModal';
+import { RoomSelectionOverlay } from '@/components/RoomSelectionOverlay';
 import { statusColors } from '@/components/constants';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { Booking } from '@/types/booking';
@@ -14,13 +15,15 @@ export default function BookingDetailPage() {
   const params = useParams();
   const router = useRouter();
   const bookingId = params?.id as string;
-  const { bookings, facilities, currentUserRole, loading, saveBookingUpdate } = useBookingData();
+  const { bookings, facilities, rooms, currentUserRole, loading, saveBookingUpdate } = useBookingData();
 
   const booking = bookings.find(b => b.id === bookingId);
 
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [checkoutAmount, setCheckoutAmount] = useState('');
   const [showArrivalModal, setShowArrivalModal] = useState(false);
+  const [showActionSheet, setShowActionSheet] = useState(false);
+  const [showRoomSelection, setShowRoomSelection] = useState(false);
 
   const formatPrice = (p: number) => p.toLocaleString('vi-VN') + 'đ';
   const calculateTotalServices = (services: any[]) =>
@@ -57,8 +60,9 @@ export default function BookingDetailPage() {
       <div className="app-container">
         <BookingDetailView
           booking={booking}
-          isPaid={booking.status === 'Đã thanh toán'}
+          isPaid={booking.status === 'Đã thanh toán' || booking.status === 'Chờ thanh toán'}
           isCancelled={booking.status === 'Đã hủy'}
+          canEditPrice={booking.status === 'Chờ thanh toán'}
           currentUserRole={currentUserRole}
           statusColors={statusColors}
           formatPrice={formatPrice}
@@ -66,12 +70,12 @@ export default function BookingDetailPage() {
           onBack={() => router.push('/bookings')}
           onSaveUpdate={saveBookingUpdate}
           getFacilityInfo={getFacilityInfo}
-          // Simple placeholder handlers to avoid errors
-          setShowActionSheet={() => {}}
+          onEditBooking={() => setShowActionSheet(true)}
+          setShowActionSheet={setShowActionSheet}
           setShowConfirmModal={() => {
             setShowArrivalModal(true);
           }}
-          setShowRoomSelection={() => router.push(`/bookings/${booking.id}/rooms`)}
+          setShowRoomSelection={() => setShowRoomSelection(true)}
           setShowCheckoutModal={() => {
             setCheckoutAmount('');
             setShowCheckoutModal(true);
@@ -137,6 +141,23 @@ export default function BookingDetailPage() {
           amount={checkoutAmount}
           onAmountChange={setCheckoutAmount}
         />
+        
+        {/* Room Selection Overlay */}
+        {showRoomSelection && (
+          <RoomSelectionOverlay
+            selectedBooking={booking}
+            facilities={facilities}
+            rooms={rooms}
+            bookings={bookings}
+            selectedFacility="all"
+            setSelectedFacility={() => {}}
+            onClose={() => setShowRoomSelection(false)}
+            onRoomSelect={async (roomName: string) => {
+              setShowRoomSelection(false);
+              router.push(`/bookings/${booking.id}/confirm?room=${encodeURIComponent(roomName)}`);
+            }}
+          />
+        )}
       </div>
     </div>
   );

@@ -52,7 +52,7 @@ export function RoomSelectionOverlay({
   const getRoomBooking = (room: RoomItem) => {
     // Kiểm tra booking hiện tại trước
     if (selectedBooking && (selectedBooking.room === room.name || selectedBooking.room === room.id)) {
-      return { ...room, bookingStatus: selectedBooking.status, bookingTime: selectedBooking.time, bookingName: selectedBooking.name };
+      return { ...room, bookingStatus: selectedBooking.status, bookingTime: selectedBooking.time, bookingName: selectedBooking.name, isCurrentBooking: true };
     }
     // Kiểm tra booking khác đang chiếm phòng
     const occupied = occupiedRooms.get(room.name) || occupiedRooms.get(room.id);
@@ -63,6 +63,7 @@ export function RoomSelectionOverlay({
   };
 
   const getRoomStatusText = (room: RoomItem, roomBooking?: any) => {
+    if (roomBooking?.isCurrentBooking) return 'Phòng hiện tại';
     if (roomBooking?.bookingStatus) return roomBooking.bookingStatus;
     if (room.status === 'maintenance') return 'Bảo trì';
     if (room.status === 'unavailable') return 'Tạm ngưng';
@@ -70,6 +71,7 @@ export function RoomSelectionOverlay({
   };
 
   const getRoomCardClass = (room: RoomItem, roomBooking?: any) => {
+    if (roomBooking?.isCurrentBooking) return 'bg-blue-100/70 border-blue-200';
     if (roomBooking?.bookingStatus === 'Đang dùng') return 'bg-blue-100/70 border-blue-200';
     if (roomBooking?.bookingStatus === 'Đã đến' || roomBooking?.bookingStatus === 'Chờ đến') return 'bg-orange-100/80 border-orange-200';
     if (room.status === 'maintenance' || room.status === 'unavailable') return 'bg-gray-100 border-gray-200 opacity-70';

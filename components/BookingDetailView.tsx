@@ -3,14 +3,15 @@ import { useRouter } from 'next/navigation';
 import { 
   ChevronLeft, MoreVertical, Phone, ShoppingBag, PlusCircle, 
   Check, Clock, Key, PlayCircle, Flag, Wallet, FileEdit, 
-  Edit3, Trash2, X, Ticket, Gift, AlertTriangle, Minus, Plus
-} from 'lucide-react'; // Assuming these are used for icons
-import { Booking, BookingStatus, Service, FacilityData } from '@/types/booking'; // Import types
+  Edit3, Trash2, X, Ticket, Gift, AlertTriangle, Minus, Plus,
+  Save, XCircle
+} from 'lucide-react';
+import { Booking, BookingStatus, Service, FacilityData } from '@/types/booking';
 import { rtdb } from '@/firebase';
 import { ref as dbRef, get as dbGet } from 'firebase/database';
 
 interface BookingDetailViewProps {
-  booking: Booking; // Use the imported Booking type
+  booking: Booking;
   isPaid: boolean;
   isCancelled: boolean;
   currentUserRole: string | null;
@@ -28,6 +29,8 @@ interface BookingDetailViewProps {
   handleUpdateServiceQty?: (idx: number, delta: number) => void;
   handleMarkPaid: (bookingId?: string, booking?: Booking, amount?: number) => Promise<void>;
   getFacilityInfo: (id: string) => any;
+  onEditBooking?: () => void;
+  canEditPrice?: boolean;
 }
 
 export function BookingDetailView({
@@ -35,14 +38,26 @@ export function BookingDetailView({
   formatPrice, calculateTotalServices, onBack, onSaveUpdate,
   setShowActionSheet, setShowConfirmModal, setShowRoomSelection,
   setShowCheckoutModal, setShowAddService, handleRemoveService,
-  handleUpdateServiceQty, handleMarkPaid, getFacilityInfo
+  handleUpdateServiceQty, handleMarkPaid, getFacilityInfo, onEditBooking,
+  canEditPrice = false
 }: BookingDetailViewProps) {
   const [rewardInfo, setRewardInfo] = useState<any>(null);
   const [editingGuests, setEditingGuests] = useState(false);
   const [tempGuests, setTempGuests] = useState(booking.guests);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingPrice, setEditingPrice] = useState(false);
+  const [tempPrice, setTempPrice] = useState(booking.totalEst || 0);
+  const [editData, setEditData] = useState({
+    name: booking.name,
+    phone: booking.phone,
+    guests: booking.guests,
+    note: booking.note || '',
+    startTime: booking.startTime || booking.arrivalTime || '',
+    date: booking.date || '',
+    totalEst: booking.totalEst || 0,
+  });
   const router = useRouter();
 
-  // Tải thông tin chi tiết phần thưởng từ ví của khách hàng
   useEffect(() => {
     if (!booking?.appliedRewardId || !booking?.userId || !rtdb) {
       setRewardInfo(null);
@@ -66,19 +81,50 @@ export function BookingDetailView({
     fetchReward();
   }, [booking.appliedRewardId, booking.userId]);
 
-  const rawSvcTotal = calculateTotalServices(booking.services || []); // Tổng tiền từ dịch vụ
-  const svcTotal = isNaN(rawSvcTotal) ? 0 : rawSvcTotal; // Đảm bảo tổng dịch vụ là số
+  const rawSvcTotal = calculateTotalServices(booking.services || []);
+  const svcTotal = isNaN(rawSvcTotal) ? 0 : rawSvcTotal;
 
-  // Xác định giá phòng hiển thị và sử dụng trong tính toán
   let displayedRoomPrice = 0;
-  // Chỉ hiển thị giá phòng thực tế nếu trạng thái đặt phòng liên quan đến thanh toán
   if (booking.status === 'Chờ thanh toán' || booking.status === 'Đã thanh toán') {
-    displayedRoomPrice = Number(booking.totalEst) || 0; // Tiền phòng được lấy từ totalEst khi lễ tân nhập
+    displayedRoomPrice = Number(booking.totalEst) || 0;
   }
 
-  const subtotal = displayedRoomPrice + svcTotal; // Sử dụng displayedRoomPrice cho tính toán tạm tính
+  const subtotal = displayedRoomPrice + svcTotal;
 
-  // Kiểm tra điều kiện áp dụng (minTotal)
+  const handleStartEdit = () => {
+    setEditData({
+      name: booking.name,
+      phone: booking.phone,
+      guests: booking.guests,
+      note: booking.note || '',
+      startTime: booking.startTime || booking.arrivalTime || '',
+      date: booking.date || '',
+      totalEst: booking.totalEst || 0,
+    });
+    setIsEditMode(true);
+    if (onEditBooking) onEditBooking();
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditMode(false);
+  };
+
+  const handleSaveEdit = async () => {
+    const updates: any = {
+      name: editData.name,
+      phone: editData.phone,
+      guests: editData.guests,
+      note: editData.note,
+      startTime: editData.startTime,
+      date: editData.date,
+    };
+    if (canEditPrice) {
+      updates.totalEst = editData.totalEst;
+    }
+    await onSaveUpdate(booking.id, updates);
+    setIsEditMode(false);
+  };
+
   const isVoucherEligible = !booking.appliedVoucher || subtotal >= (booking.appliedVoucher.minTotal || 0);
   const isRewardEligible = !rewardInfo || subtotal >= (rewardInfo.minTotal || 0);
 
@@ -100,23 +146,59 @@ export function BookingDetailView({
       <div className="flex items-center justify-between px-4 pt-12 pb-4 bg-white sticky top-0 z-10 shadow-sm shrink-0">
         <ChevronLeft className="w-6 h-6 text-gray-700 cursor-pointer" onClick={onBack} />
         <h1 className="font-bold text-lg">Chi tiết đặt phòng</h1>
-        <MoreVertical className="w-6 h-6 text-gray-700" />
+        {!isEditMode ? (
+          <MoreVertical className="w-6 h-6 text-gray-700" />
+        ) : (
+          <div className="flex gap-2">
+            <button onClick={handleCancelEdit} className="p-1.5 rounded-lg hover:bg-gray-100">
+              <XCircle className="w-5 h-5 text-gray-600" />
+            </button>
+            <button onClick={handleSaveEdit} className="p-1.5 rounded-lg hover:bg-green-50">
+              <Save className="w-5 h-5 text-green-600" />
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 pb-32">
         {/* User Info Card */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-gray-100 flex items-center">
-          <div className="w-12 h-12 bg-gray-200 rounded-full mr-3 flex-shrink-0 bg-cover bg-center" style={{ backgroundImage: 'url("https://i.pravatar.cc/150?img=11")' }}></div>
-          <div className="flex-1">
-            <div className="flex justify-between items-start">
-              <h2 className="font-bold text-base text-gray-800">{booking.name}</h2>
-              <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${statusColors[booking.status]}`}>
-                {booking.status}
-              </span>
+        <div className="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-gray-100">
+          <div className="flex items-center mb-3">
+            <div className="w-12 h-12 bg-gray-200 rounded-full mr-3 flex-shrink-0 bg-cover bg-center" style={{ backgroundImage: 'url("https://i.pravatar.cc/150?img=11")' }}></div>
+            <div className="flex-1">
+              {isEditMode ? (
+                <input
+                  type="text"
+                  value={editData.name}
+                  onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Tên khách hàng"
+                />
+              ) : (
+                <h2 className="font-bold text-base text-gray-800">{booking.name}</h2>
+              )}
             </div>
-            <div className="flex items-center text-gray-500 text-sm mt-1">
-              {booking.phone} <Phone className="w-3 h-3 ml-2 text-green-500" />
-            </div>
+            <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${statusColors[booking.status]}`}>
+              {booking.status}
+            </span>
+          </div>
+          <div className="flex items-center text-gray-500 text-sm">
+            {isEditMode ? (
+              <div className="flex items-center gap-2 flex-1">
+                <Phone className="w-3 h-3 text-green-500" />
+                <input
+                  type="tel"
+                  value={editData.phone}
+                  onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
+                  className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Số điện thoại"
+                />
+              </div>
+            ) : (
+              <>
+                {booking.phone} <Phone className="w-3 h-3 ml-2 text-green-500" />
+              </>
+            )}
           </div>
         </div>
 
@@ -139,7 +221,23 @@ export function BookingDetailView({
           <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-50">
             <div>
               <div className="text-xs text-gray-500 mb-1">Số người</div>
-              {editingGuests ? (
+              {isEditMode ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setEditData({ ...editData, guests: Math.max(1, editData.guests - 1) })}
+                    className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600"
+                  >
+                    <Minus className="w-3 h-3" />
+                  </button>
+                  <span className="font-bold text-gray-800 w-6 text-center">{editData.guests}</span>
+                  <button
+                    onClick={() => setEditData({ ...editData, guests: editData.guests + 1 })}
+                    className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : editingGuests ? (
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setTempGuests(Math.max(1, tempGuests - 1))}
@@ -158,7 +256,7 @@ export function BookingDetailView({
               ) : (
                 <div className="flex items-center gap-2">
                   <div className="font-bold text-gray-800">{booking.guests}</div>
-                  {!isCancelled && !isPaid && (
+                  {!isCancelled && !isPaid && !isEditMode && (
                     <button
                       onClick={() => { setEditingGuests(true); setTempGuests(booking.guests); }}
                       className="text-blue-600 hover:text-blue-700"
@@ -168,7 +266,7 @@ export function BookingDetailView({
                   )}
                 </div>
               )}
-              {editingGuests && (
+              {editingGuests && !isEditMode && (
                 <div className="flex gap-2 mt-2">
                   <button
                     onClick={async () => {
@@ -190,24 +288,53 @@ export function BookingDetailView({
             </div>
             <div>
               <div className="text-xs text-gray-500 mb-1">Giờ bắt đầu</div>
-              <div className="font-bold text-gray-800">
-                {booking.startTime || booking.arrivalTime || 'Chưa bắt đầu'}
-              </div>
+              {isEditMode ? (
+                <input
+                  type="time"
+                  value={editData.startTime}
+                  onChange={(e) => setEditData({ ...editData, startTime: e.target.value })}
+                  className="w-full px-2 py-1 border border-gray-300 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              ) : (
+                <div className="font-bold text-gray-800">
+                  {booking.startTime || booking.arrivalTime || 'Chưa bắt đầu'}
+                </div>
+              )}
             </div>
             <div>
-              <div className="text-xs text-gray-500 mb-1">{booking.endTime ? 'Giờ kết thúc' : 'Ngày đặt'}</div>
-              <div className="font-bold text-gray-800">
-                {booking.endTime ? booking.endTime : booking.date || 'Chưa có ngày'}
-              </div>
+              <div className="text-xs text-gray-500 mb-1">Ngày đặt</div>
+              {isEditMode ? (
+                <input
+                  type="date"
+                  value={editData.date}
+                  onChange={(e) => setEditData({ ...editData, date: e.target.value })}
+                  className="w-full px-2 py-1 border border-gray-300 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              ) : (
+                <div className="font-bold text-gray-800">
+                  {booking.date || 'Chưa có ngày'}
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Services Info */}
         <div className="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-gray-100">
-          <h3 className="font-bold text-gray-800 mb-3 text-sm">
-            {booking.status === 'Đang dùng' ? 'Dịch vụ đã dùng (tạm tính)' : 'Dịch vụ dự kiến'}
-          </h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-bold text-gray-800 text-sm">
+              {booking.status === 'Đang dùng' ? 'Dịch vụ đã dùng (tạm tính)' : 'Dịch vụ dự kiến'}
+            </h3>
+            {!isCancelled && !isPaid && !isEditMode && (
+              <button
+                onClick={() => setShowAddService(true)}
+                className="text-blue-600 hover:text-blue-700 text-xs font-bold flex items-center gap-1"
+              >
+                <PlusCircle className="w-3 h-3" />
+                Thêm dịch vụ
+              </button>
+            )}
+          </div>
           {booking.services && booking.services.length > 0 ? (
             <>
               <div className="space-y-3 mb-4">
@@ -239,7 +366,7 @@ export function BookingDetailView({
                   </div>
                 ))}
               </div>
-              {!isCancelled && !isPaid && (
+              {!isCancelled && !isPaid && !isEditMode && (
                 <button
                   onClick={() => setShowAddService(true)}
                   className="w-full py-2.5 mb-2 border-2 border-dashed border-blue-200 bg-blue-50/50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 hover:border-blue-300 transition-colors flex items-center justify-center gap-2"
@@ -259,7 +386,7 @@ export function BookingDetailView({
               <div className="flex flex-col items-center py-6">
                 <ShoppingBag className="w-8 h-8 text-gray-200 mb-2" />
                 <p className="text-sm text-gray-400 mb-4">Chưa có dịch vụ nào</p>
-                {!isCancelled && !isPaid && (
+                {!isCancelled && !isPaid && !isEditMode && (
                   <button
                     onClick={() => setShowAddService(true)}
                     className="px-6 py-2 bg-blue-50 text-blue-600 rounded-full text-sm font-bold hover:bg-blue-100 transition-colors"
@@ -323,9 +450,48 @@ export function BookingDetailView({
         <div className="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-gray-100">
           <h3 className="font-bold text-gray-800 mb-3 text-sm">Chi tiết thanh toán</h3>
           <div className="space-y-2">
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-sm items-center">
               <span className="text-gray-500">Tiền phòng</span>
-              <span className="font-medium text-gray-800">{formatPrice(displayedRoomPrice)}</span>
+              {editingPrice ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={tempPrice}
+                    onChange={(e) => setTempPrice(Number(e.target.value) || 0)}
+                    className="w-32 px-2 py-1 border border-gray-300 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 text-right"
+                    placeholder="Tiền phòng"
+                    autoFocus
+                  />
+                  <button
+                    onClick={async () => {
+                      await onSaveUpdate(booking.id, { totalEst: tempPrice });
+                      setEditingPrice(false);
+                    }}
+                    className="text-green-600 hover:text-green-700"
+                  >
+                    <Check className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setEditingPrice(false)}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-gray-800">{formatPrice(displayedRoomPrice)}</span>
+                  {canEditPrice && (
+                    <button
+                      onClick={() => { setEditingPrice(true); setTempPrice(displayedRoomPrice); }}
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm"
+                      title="Chỉnh sửa tiền phòng"
+                    >
+                      Sửa
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Dịch vụ</span>
@@ -349,40 +515,63 @@ export function BookingDetailView({
         </div>
 
         {/* Note */}
-        {booking.note && booking.status !== 'Đang dùng' && (
+        {(booking.note || isEditMode) && booking.status !== 'Đang dùng' && (
           <div className="bg-white rounded-2xl p-4 shadow-sm mb-4 border border-gray-100">
             <div className="text-xs text-gray-500 mb-1">Ghi chú</div>
-            <div className="font-medium text-gray-800 text-sm">{booking.note}</div>
+            {isEditMode ? (
+              <textarea
+                value={editData.note}
+                onChange={(e) => setEditData({ ...editData, note: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                rows={3}
+                placeholder="Thêm ghi chú..."
+              />
+            ) : (
+              <div className="font-medium text-gray-800 text-sm">{booking.note}</div>
+            )}
           </div>
         )}
       </div>
 
       {/* Bottom Actions */}
       <div className="absolute bottom-0 w-full bg-white border-t border-gray-100 p-4 pb-8 flex gap-3 z-20 shadow-[0_-4px_10px_rgba(0,0,0,0.03)]">
-        {(booking.status === 'Đã xác nhận' || booking.status === 'Chờ xác nhận') ? (
+        {isEditMode ? (
+          <div className="w-full flex gap-3">
+            <button onClick={handleCancelEdit} className="flex-1 py-3.5 rounded-xl border border-gray-200 font-bold text-gray-600 text-sm">Hủy</button>
+            <button onClick={handleSaveEdit} className="flex-1 py-3.5 rounded-xl font-bold text-white text-sm bg-green-600 shadow-md shadow-green-600/20">Lưu thay đổi</button>
+          </div>
+        ) : (booking.status === 'Đã xác nhận' || booking.status === 'Chờ xác nhận') ? (
           <>
             <button onClick={() => setShowActionSheet(true)} className="flex-1 py-3.5 rounded-xl border border-gray-200 font-bold text-gray-600 text-sm">Hủy đơn</button>
             <button onClick={() => setShowConfirmModal(true)} className="flex-1 py-3.5 rounded-xl font-bold text-white text-sm bg-green-600 shadow-md shadow-green-600/20">Xác nhận đến</button>
           </>
         ) : booking.status === 'Đã đến' ? (
           <>
-            <button onClick={() => setShowActionSheet(true)} className="flex-1 py-3.5 rounded-xl border border-gray-200 font-bold text-blue-600 text-sm">Chỉnh sửa</button>
+            <button onClick={handleStartEdit} className="flex-1 py-3.5 rounded-xl border border-gray-200 font-bold text-blue-600 text-sm">Chỉnh sửa</button>
             <button onClick={() => setShowRoomSelection(true)} className="flex-1 py-3.5 rounded-xl font-bold text-white text-sm bg-green-600 shadow-md shadow-green-600/20">Chọn phòng</button>
           </>
         ) : booking.status === 'Chờ đến' ? (
           <>
-            <button onClick={() => setShowActionSheet(true)} className="flex-1 py-3.5 rounded-xl border border-gray-200 font-bold text-blue-600 text-sm">Chỉnh sửa</button>
+            <button onClick={handleStartEdit} className="flex-1 py-3.5 rounded-xl border border-gray-200 font-bold text-blue-600 text-sm">Chỉnh sửa</button>
             <button onClick={() => setShowConfirmModal(true)} className="flex-1 py-3.5 rounded-xl font-bold text-white text-sm bg-green-600 shadow-md shadow-green-600/20">Xác nhận đến</button>
           </>
-        ) : booking.status === 'Đang dùng' ? (
+        ) : (booking.status === 'Đang dùng' || (isPaid && canEditPrice)) ? (
           <div className="w-full space-y-3">
             {!booking.room && (
               <button onClick={() => setShowRoomSelection(true)} className="w-full py-3.5 rounded-xl border-2 border-green-600 font-bold text-green-600 text-sm flex justify-center items-center"><Key className="w-5 h-5 mr-2" /> Chọn phòng</button>
             )}
             <button onClick={() => setShowCheckoutModal(true)} className="w-full py-3.5 rounded-xl font-bold text-white text-sm bg-green-600 shadow-md shadow-green-600/20">Kết thúc & Tính tiền</button>
           </div>
-        ) : booking.status === 'Chờ thanh toán' && !isPaid ? ( // Ensure not already paid
-          <button onClick={() => handleMarkPaid(booking.id, booking, finalTotal)} className="w-full py-3.5 rounded-xl font-bold text-white text-sm bg-red-600 shadow-md shadow-red-600/20">Thanh toán</button>
+        ) : booking.status === 'Chờ thanh toán' && !isPaid ? (
+          <div className="w-full space-y-3">
+            <button 
+              onClick={() => { setEditingPrice(true); setTempPrice(booking.totalEst || 0); }}
+              className="w-full py-3.5 rounded-xl border-2 border-blue-600 font-bold text-blue-600 text-sm"
+            >
+              ✏️ Chỉnh sửa tiền phòng
+            </button>
+            <button onClick={() => handleMarkPaid(booking.id, booking, finalTotal)} className="w-full py-3.5 rounded-xl font-bold text-white text-sm bg-red-600 shadow-md shadow-red-600/20">Thanh toán</button>
+          </div>
         ) : null}
       </div>
     </div>

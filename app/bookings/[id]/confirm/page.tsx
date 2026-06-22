@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useBookingData } from '@/hooks/useBookingData';
-import { ChevronLeft, CheckCircle, Loader2, Clock } from 'lucide-react';
+import { ChevronLeft, CheckCircle, Loader2, Clock, Minus, Plus } from 'lucide-react';
 
 export default function ConfirmTimePage() {
   const params = useParams();
@@ -16,6 +16,11 @@ export default function ConfirmTimePage() {
   const currentBooking = bookings?.find(b => b.id === bookingId);
 
   const [note, setNote] = useState('');
+  const [guests, setGuests] = useState(currentBooking?.guests || 1);
+  const [startTime, setStartTime] = useState(
+    currentBooking?.startTime || currentBooking?.arrivalTime || 
+    new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,7 +30,13 @@ export default function ConfirmTimePage() {
     if (currentBooking?.note) {
       setNote(currentBooking.note);
     }
-  }, [currentBooking?.note]);
+    if (currentBooking?.guests) {
+      setGuests(currentBooking.guests);
+    }
+    if (currentBooking?.startTime || currentBooking?.arrivalTime) {
+      setStartTime(currentBooking.startTime || currentBooking.arrivalTime || '');
+    }
+  }, [currentBooking?.note, currentBooking?.guests, currentBooking?.startTime, currentBooking?.arrivalTime]);
 
   const handleConfirm = async () => {
     if (!bookingId || !selectedRoom || !saveBookingUpdate) return;
@@ -34,15 +45,13 @@ export default function ConfirmTimePage() {
     setError(null);
     
     try {
-      const now = new Date();
-      const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-      
       await saveBookingUpdate(bookingId, {
         room: selectedRoom,
         status: 'Đang dùng',
-        startTime: currentTime,
-        arrivalTime: currentTime,
+        startTime: startTime,
+        arrivalTime: startTime,
         updatedAt: Date.now(),
+        guests: guests,
         note: note || currentBooking?.note || '',
       });
       
@@ -55,7 +64,7 @@ export default function ConfirmTimePage() {
   };
 
   const handleCancel = () => {
-    router.back();
+    router.push(`/bookings/${bookingId}`);
   };
 
   if (loading) {
@@ -118,20 +127,41 @@ export default function ConfirmTimePage() {
               </div>
             </div>
 
-            <div className="border-t border-gray-100 pt-4 space-y-3">
+            <div className="border-t border-gray-100 pt-4 space-y-4">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Khách hàng</span>
                 <span className="font-medium text-gray-800">{currentBooking.name}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Số người</span>
-                <span className="font-medium text-gray-800">{currentBooking.guests} người</span>
+              
+              {/* Số người */}
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-500">Số người</span>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setGuests(Math.max(1, guests - 1))}
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <span className="font-bold text-gray-800 w-8 text-center">{guests}</span>
+                  <button
+                    onClick={() => setGuests(guests + 1)}
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Thời gian hiện tại</span>
-                <span className="font-bold text-indigo-600">
-                  {new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                </span>
+
+              {/* Thời gian bắt đầu */}
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-500">Thời gian bắt đầu</span>
+                <input
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
               </div>
             </div>
           </div>
