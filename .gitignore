@@ -7,6 +7,10 @@ node_modules/
 # --- Environment variables (CONTAINS SENSITIVE FIREBASE CREDENTIALS) ---
 .env.local
 .env*.local
+.env
+.env.local
+.env.production
+.env.development
 
 # --- TypeScript ---
 *.tsbuildinfo
